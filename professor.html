@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Der Verrückte Professor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      font-family: 'Courier New', monospace;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+      position: relative; overflow: hidden;
+    }
+    .grid {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .vignette {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.75) 100%);
+    }
+    .scanlines {
+      position: absolute; inset: 0; pointer-events: none; z-index: 10;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+    }
+    h1 {
+      color: #00ff41; font-size: 1.4rem; letter-spacing: 0.15em;
+      text-shadow: 0 0 12px #00ff41, 0 0 30px rgba(0,255,65,0.4);
+      text-align: center; z-index: 2; margin-bottom: 4px;
+    }
+    .subtitle {
+      color: rgba(0,255,65,0.4); font-size: 0.68rem; letter-spacing: 0.25em;
+      text-align: center; z-index: 2; margin-bottom: 20px;
+    }
+    .subtitle span { color: #ffff00; }
+
+    /* ---- FACE ---- */
+    #face {
+      position: relative; width: 280px; height: 280px;
+      border: 3px solid #00ff41;
+      box-shadow: 0 0 30px #00ff41, 0 0 60px rgba(0,255,65,0.3), inset 0 0 20px rgba(0,255,65,0.05);
+      background: #0a0a0a; overflow: hidden; z-index: 2;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #face.awake {
+      border-color: #ffff00;
+      box-shadow: 0 0 30px #ffff00, 0 0 60px rgba(255,255,0,0.3);
+    }
+    #face.listening-active {
+      border-color: #ff4400;
+      box-shadow: 0 0 30px #ff4400, 0 0 60px rgba(255,68,0,0.3);
+    }
+    .head-outline {
+      position: absolute; top: 30px; left: 40px; right: 40px; bottom: 30px;
+      border: 2px solid rgba(0,255,65,0.4);
+      border-radius: 60% 60% 50% 50%;
+    }
+    .spike {
+      position: absolute; width: 8px; background: #00ff41;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%); opacity: 0.7;
+    }
+    .eye {
+      position: absolute; top: 105px; width: 32px; height: 28px;
+      background: #00ff41; box-shadow: 0 0 12px #00ff41;
+      transition: height 0.08s;
+    }
+    #eye-l { left: 80px; }
+    #eye-r { right: 80px; }
+    .pupil {
+      position: absolute; top: 4px; width: 10px; height: 10px;
+      background: #000; border-radius: 50%;
+    }
+    #pupil-l { left: 90px; }
+    #pupil-r { right: 90px; }
+    #nose {
+      position: absolute; top: 148px; left: 50%; transform: translateX(-50%);
+      width: 14px; height: 20px;
+      border-left: 2px solid rgba(0,255,65,0.5);
+      border-bottom: 2px solid rgba(0,255,65,0.5);
+      border-radius: 0 0 0 8px;
+    }
+    #mouth {
+      position: absolute; bottom: 68px; left: 50%; transform: translateX(-50%);
+      width: 110px; height: 8px; background: #00ff41;
+      box-shadow: 0 0 18px #00ff41; border-radius: 4px;
+      transition: height 0.08s;
+    }
+    .status-led {
+      position: absolute; top: 12px; right: 12px;
+      width: 10px; height: 10px; border-radius: 50%; background: #003300;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .corner {
+      position: absolute; width: 16px; height: 16px;
+      border: 2px solid #00ff41;
+    }
+    .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+    .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+    .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+    .corner.br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+    /* ---- STATUS ---- */
+    #status {
+      z-index: 2; margin-top: 16px; width: 280px;
+      color: #00ff41; font-size: 0.8rem; text-align: center;
+      min-height: 44px; padding: 8px 12px;
+      border: 1px solid rgba(0,255,65,0.25);
+      background: rgba(0,255,65,0.04);
+      text-shadow: 0 0 8px #00ff41;
+      word-break: break-word;
+      transition: color 0.1s, border-color 0.2s;
+    }
+    #status.awake { color: #ffff00; border-color: rgba(255,255,0,0.4); text-shadow: 0 0 8px #ffff00; }
+
+    /* ---- BUTTON ---- */
+    #start-btn {
+      z-index: 2; margin-top: 16px;
+      background: transparent; color: #00ff41;
+      border: 2px solid #00ff41;
+      padding: 13px 34px; font-size: 1rem; letter-spacing: 0.15em;
+      cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold;
+      box-shadow: 0 0 20px rgba(0,255,65,0.5);
+      text-shadow: 0 0 8px #00ff41;
+    }
+    #start-btn:hover { background: rgba(0,255,65,0.1); }
+
+    #indicator {
+      z-index: 2; margin-top: 14px;
+      font-size: 0.72rem; letter-spacing: 0.18em; color: rgba(0,255,65,0.6);
+      text-shadow: 0 0 6px rgba(0,255,65,0.4);
+    }
+
+    /* ---- LOG ---- */
+    #log {
+      z-index: 2; margin-top: 14px; width: 280px;
+      max-height: 140px; overflow-y: auto;
+      font-size: 0.67rem; border: 1px solid rgba(0,255,65,0.15);
+      padding: 8px; background: rgba(0,0,0,0.6); display: none;
+    }
+    .log-user { color: rgba(0,255,65,0.45); margin-bottom: 2px; }
+    .log-prof { color: rgba(0,255,65,0.85); margin-bottom: 8px; }
+
+    .footer {
+      z-index: 2; margin-top: 12px;
+      color: rgba(0,255,65,0.18); font-size: 0.56rem; letter-spacing: 0.2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="vignette"></div>
+
+  <h1>◈ DER VERRÜCKTE PROFESSOR ◈</h1>
+  <div class="subtitle">MAX HEADROOM EDITION — WAKE WORD: <span>"PROFESSOR"</span></div>
+
+  <div id="face">
+    <div class="scanlines"></div>
+    <div class="head-outline"></div>
+
+    <!-- spikes -->
+    <div class="spike" style="top:20px;left:60px;height:24px"></div>
+    <div class="spike" style="top:26px;left:90px;height:18px"></div>
+    <div class="spike" style="top:20px;left:120px;height:24px"></div>
+    <div class="spike" style="top:26px;left:150px;height:18px"></div>
+    <div class="spike" style="top:20px;left:180px;height:24px"></div>
+    <div class="spike" style="top:26px;left:210px;height:18px"></div>
+
+    <div class="eye" id="eye-l"><div class="pupil" style="left:11px"></div></div>
+    <div class="eye" id="eye-r"><div class="pupil" style="left:11px"></div></div>
+    <div id="nose"></div>
+    <div id="mouth"></div>
+    <div class="status-led" id="led"></div>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
+
+  <div id="status">Klicke START um den Professor zu aktivieren...</div>
+  <button id="start-btn" onclick="activate()">▶ START — MIKROFON AKTIVIEREN</button>
+  <div id="indicator"></div>
+  <div id="log"></div>
+  <div class="footer">SYSTEM ONLINE — WAKE WORD DETECTION</div>
+
+<script>
+const WAKE_WORD = "professor";
+const SYSTEM_PROMPT = `Du bist ein verrückter, genialer Halloween-Professor im Stil von Max Headroom aus den 80ern. Du stotterst ab und zu absichtlich (z.B. 'M-M-Meine Freunde!'), deine Sätze setzen manchmal aus, du bist exzentrisch, leicht irre, aber freundlich. Du liebst Grusel, Blitze und absurde Experimente. Antworte kurz und knackig (maximal 2-3 Sätze), damit die Sprachausgabe schnell ist.`;
+
+const face    = document.getElementById('face');
+const mouth   = document.getElementById('mouth');
+const eyeL    = document.getElementById('eye-l');
+const eyeR    = document.getElementById('eye-r');
+const led     = document.getElementById('led');
+const statusEl= document.getElementById('status');
+const indicator= document.getElementById('indicator');
+const logEl   = document.getElementById('log');
+const startBtn= document.getElementById('start-btn');
+
+let isSpeaking = false, isAwake = false, isThinking = false, isActive = false;
+let animInterval = null, rec = null;
+
+/* ---- GLITCH ---- */
+setInterval(() => {
+  if (Math.random() > 0.93) {
+    face.style.transform = `translateX(${Math.floor(Math.random()*8)-4}px)`;
+    setTimeout(() => face.style.transform = '', 80);
+  }
+  if (Math.random() > 0.85) {
+    statusEl.style.color = '#ff4400';
+    setTimeout(() => statusEl.style.color = '', 100);
+  }
+}, 200);
+
+/* ---- BLINK ---- */
+function scheduleBlink() {
+  setTimeout(() => {
+    eyeL.style.height = eyeR.style.height = '3px';
+    setTimeout(() => { eyeL.style.height = eyeR.style.height = '28px'; scheduleBlink(); }, 120);
+  }, 2800 + Math.random() * 2500);
+}
+scheduleBlink();
+
+/* ---- FACE STATE ---- */
+function setFaceState(state) {
+  face.className = state === 'awake' ? 'awake' : state === 'error' ? 'listening-active' : '';
+  statusEl.className = state === 'awake' ? 'awake' : '';
+  led.style.background = state === 'speaking' ? '#00ff41' : state === 'awake' ? '#ffff00' : state === 'error' ? '#ff4400' : '#003300';
+  led.style.boxShadow  = state === 'speaking' ? '0 0 8px #00ff41' : state === 'awake' ? '0 0 8px #ffff00' : state === 'error' ? '0 0 8px #ff4400' : 'none';
+}
+
+/* ---- MOUTH ANIM ---- */
+function startMouth() {
+  clearInterval(animInterval);
+  animInterval = setInterval(() => {
+    const h = Math.floor(Math.random() * 55) + 8;
+    mouth.style.height = h + 'px';
+    if (Math.random() > 0.75) {
+      eyeL.style.height = eyeR.style.height = Math.random() > 0.5 ? '4px' : '28px';
+    }
+  }, 85);
+}
+function stopMouth() {
+  clearInterval(animInterval);
+  mouth.style.height = '8px';
+  eyeL.style.height = eyeR.style.height = '28px';
+}
+
+/* ---- VOICES (Android lädt sie async) ---- */
+let cachedVoices = [];
+function loadVoices() {
+  cachedVoices = window.speechSynthesis.getVoices();
+}
+loadVoices();
+window.speechSynthesis.onvoiceschanged = loadVoices;
+
+function getBestVoice() {
+  // Priorität: de-DE > de > irgendeine > default
+  return cachedVoices.find(v => v.lang === 'de-DE')
+      || cachedVoices.find(v => v.lang.startsWith('de'))
+      || cachedVoices[0]
+      || null;
+}
+
+/* ---- TTS ---- */
+function speak(text) {
+  const synth = window.speechSynthesis;
+
+  // Android-Bug: synth hängt manchmal – hartes Reset
+  synth.cancel();
+
+  // Kurze Pause nach cancel(), sonst piept Android
+  setTimeout(() => {
+    isSpeaking = true;
+    setFaceState('speaking');
+    startMouth();
+
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = getBestVoice();
+    if (voice) utter.voice = voice;
+    utter.lang = 'de-DE';
+    utter.rate = 1.1;
+    utter.pitch = 1.1;
+    utter.volume = 1.0;
+
+    // Android-Bug: onend feuert manchmal nicht → Fallback-Timer
+    let ended = false;
+    const fallback = setTimeout(() => {
+      if (!ended) { ended = true; onSpeakEnd(); }
+    }, text.length * 80 + 3000); // grobe Schätzung der Sprechdauer
+
+    function onSpeakEnd() {
+      clearTimeout(fallback);
+      if (ended && fallback) {} // schon gelaufen
+      ended = true;
+      isSpeaking = false;
+      stopMouth();
+      setFaceState('idle');
+      setStatus('Sag "PROFESSOR" um mich zu wecken...');
+      setTimeout(startListening, 400);
+    }
+
+    utter.onend   = onSpeakEnd;
+    utter.onerror = onSpeakEnd;
+
+    synth.speak(utter);
+  }, 200);
+}
+
+/* ---- API ---- */
+async function askProfessor(question) {
+  isThinking = true; isAwake = false;
+  setFaceState('idle');
+  setStatus('P-P-Professor denkt nach...');
+  indicator.textContent = '⟳ VERARBEITUNG...';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: question }]
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'K-K-Kurzschluss! Mein Gehirn funkt... Funken!';
+    addLog(question, reply);
+    isThinking = false;
+    setStatus('Professor spricht...');
+    indicator.textContent = '▶ SPRICHT...';
+    speak(reply);   // speak() ruft danach startListening() auf
+  } catch(e) {
+    isThinking = false;
+    speak('K-K-Kurzschluss! Mein Gehirn funkt... Funken!'); // speak() startet danach Mic neu
+  }
+}
+
+/* ---- LOG ---- */
+function addLog(user, prof) {
+  logEl.style.display = 'block';
+  const u = document.createElement('div'); u.className = 'log-user'; u.textContent = 'Du: ' + user;
+  const p = document.createElement('div'); p.className = 'log-prof'; p.textContent = 'Prof: ' + prof;
+  logEl.appendChild(u); logEl.appendChild(p);
+  logEl.scrollTop = logEl.scrollHeight;
+  // max 5 Einträge
+  while (logEl.children.length > 10) logEl.removeChild(logEl.firstChild);
+}
+
+/* ---- STATUS ---- */
+function setStatus(txt) { statusEl.textContent = txt; }
+
+/* ---- SPEECH RECOGNITION (continuous – kein Neustart, kein Piepton) ---- */
+function startListening() {
+  if (!isActive || rec) return;
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setStatus('Web Speech API nicht verfügbar – bitte Chrome nutzen.'); return; }
+
+  rec = new SR();
+  rec.lang = 'de-DE';
+  rec.continuous = true;
+  rec.interimResults = false;
+
+  rec.onresult = (e) => {
+    const result = e.results[e.results.length - 1];
+    if (!result.isFinal) return;
+    const transcript = result[0].transcript.toLowerCase().trim();
+    console.log('Erkannt:', transcript);
+
+    if (isSpeaking || isThinking) return;
+
+    if (!isAwake) {
+      if (transcript.includes(WAKE_WORD)) {
+        isAwake = true;
+        setFaceState('awake');
+        setStatus('⚡ Ja?! Stelle deine Frage...');
+        indicator.textContent = '⚡ WARTET AUF FRAGE';
+      }
+    } else {
+      const question = transcript.replace(WAKE_WORD, '').trim() || transcript;
+      isAwake = false;
+      setStatus('Du: "' + question + '"');
+      stopListening();
+      askProfessor(question);
+    }
+  };
+
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed') {
+      setFaceState('error');
+      setStatus('❌ Mikrofon verweigert! Seite neu laden und Erlauben klicken.');
+      isActive = false;
+    } else if (e.error === 'no-speech') {
+      // ignorieren
+    } else {
+      rec = null;
+      setTimeout(startListening, 1000);
+    }
+  };
+
+  rec.onend = () => {
+    rec = null;
+    if (isActive && !isSpeaking && !isThinking) setTimeout(startListening, 300);
+  };
+
+  rec.start();
+}
+
+function stopListening() {
+  if (rec) { try { rec.stop(); } catch(e) {} rec = null; }
+}
+
+/* ---- ACTIVATE ---- */
+function activate() {
+  isActive = true;
+  startBtn.style.display = 'none';
+  indicator.textContent = '◉ LAUSCHT IM HINTERGRUND';
+  setStatus('Mikrofon aktiv – sag "PROFESSOR" um mich zu wecken!');
+
+  // Voices nochmal laden (nach User-Interaktion verfügbar auf Android)
+  loadVoices();
+
+  // Android-Bug: speechSynthesis pausiert im Hintergrund → alle 10s aufwecken
+  setInterval(() => {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  }, 10000);
+
+  startListening();
+}
+</script>
+</body>
+</html>
